@@ -6,7 +6,7 @@ A single Chrome extension for searching selected text on an editable list of web
 
 1. Open `chrome://extensions` in Chrome.
 2. Turn on **Developer mode** at the top right.
-3. Choose **Load unpacked** and select this folder (`D:\Chrome-extensions\SEARCHIT-Right-Click-Search`).
+3. Choose **Load unpacked** and select the extracted extension folder (`<path-to-extension-folder>`).
 4. Click the extension's toolbar icon (under the puzzle-piece button) to open settings.
 
 ## Use
