@@ -1,10 +1,57 @@
-import { readOptions, validateOption, TOKEN } from './search.js';
+import { readOptions, validateOption, TOKEN, DEFAULT_OPTIONS } from './search.js';
 import { exportOptions, importOptions } from './transfer.js';
+import { limitPopupLabel } from './popup-label.js';
+import { DEFAULT_POPUP, POPUP_ORIGINS, readPopup } from './popup-settings.js';
 
 const list = document.querySelector('#options');
 const status = document.querySelector('#status');
+const statusTop = document.querySelector('#status-top');
+new MutationObserver(() => { statusTop.textContent = status.textContent; }).observe(status, { childList: true, subtree: true, characterData: true });
+const saveButtons = [document.querySelector('#save'), document.querySelector('#save-top')];
+function disableSave(disabled) { saveButtons.forEach(button => { button.disabled = disabled; }); }
+document.querySelector('#reset-top').addEventListener('click', () => document.querySelector('#reset').click());
+document.querySelector('#discard-top').addEventListener('click', () => document.querySelector('#discard').click());
 let saved = [];
 let dirty = false;
+let savedPopup = { ...DEFAULT_POPUP };
+let popupEnabled = false;
+const popupButton = document.querySelector('#popup-enabled');
+const popupTheme = document.querySelector('#popup-theme');
+const popupPosition = document.querySelector('#popup-position');
+const popupColumns = document.querySelector('#popup-columns');
+const popupStatus = document.querySelector('#popup-status');
+function renderPopup(settings) {
+  popupEnabled = settings.enabled;
+  popupButton.setAttribute('aria-checked', String(popupEnabled));
+  popupButton.textContent = `Quick popup: ${popupEnabled ? 'On' : 'Off'}`;
+  popupTheme.value = settings.theme;
+  popupPosition.value = settings.position;
+  popupColumns.value = settings.iconsPerRow ?? 8;
+}
+function collectPopup() { return { enabled: popupEnabled, theme: popupTheme.value, position: popupPosition.value, iconsPerRow: Number(popupColumns.value) }; }
+popupButton.addEventListener('click', async () => {
+  popupButton.disabled = true;
+  try {
+    if (!popupEnabled) {
+      const granted = await chrome.permissions.request({ origins: POPUP_ORIGINS });
+      if (!granted) { popupStatus.textContent = 'Website access was not granted. The right-click menu still works.'; return; }
+    }
+    renderPopup({ ...collectPopup(), enabled: !popupEnabled });
+    popupStatus.textContent = 'Save changes to apply this choice.';
+    markDirty();
+  } catch { popupStatus.textContent = 'Could not change website access. Try again.'; }
+  finally { popupButton.disabled = false; }
+});
+popupTheme.addEventListener('change', markDirty);
+popupPosition.addEventListener('change', markDirty);
+popupColumns.addEventListener('input', markDirty);
+chrome.permissions.onRemoved.addListener(async () => {
+  if (!await chrome.permissions.contains({ origins: POPUP_ORIGINS })) {
+    renderPopup({ ...collectPopup(), enabled: false });
+    savedPopup.enabled = false;
+    popupStatus.textContent = 'Website access was removed. Enable the quick popup to grant it again.';
+  }
+});
 
 function markDirty() { dirty = true; status.textContent = 'Unsaved changes'; }
 function updateCount() {
@@ -58,6 +105,12 @@ function addRow(option) {
   });
   row.querySelector('.enabled').checked = option.enabled !== false;
   row.querySelector('.incognito').checked = option.incognito === true;
+  row.querySelector('.quick-popup').checked = option.quickPopup !== false;
+  const popupLabel = row.querySelector('.popup-label');
+  popupLabel.value = limitPopupLabel(option.popupLabel);
+  const limitLabel = () => { popupLabel.value = limitPopupLabel(popupLabel.value); };
+  popupLabel.addEventListener('input', event => { if (!event.isComposing) limitLabel(); });
+  popupLabel.addEventListener('compositionend', limitLabel);
   row.querySelector('.site-icon img').addEventListener('error', () => {
     row.querySelector('.site-icon img').hidden = true;
     row.querySelector('.site-icon span').hidden = false;
@@ -90,12 +143,19 @@ document.querySelector('#add').addEventListener('click', () => {
   const row = addRow({ id: crypto.randomUUID(), name: '', url: '', enabled: true });
   markDirty(); row.querySelector('.name').focus();
 });
-document.querySelector('#discard').addEventListener('click', () => { render(saved); dirty = false; status.textContent = 'Changes discarded'; });
+document.querySelector('#discard').addEventListener('click', () => { render(saved); renderPopup(savedPopup); popupStatus.textContent = ''; dirty = false; status.textContent = 'Changes discarded'; });
+document.querySelector('#reset').addEventListener('click', () => {
+  render(DEFAULT_OPTIONS.map(option => ({ ...option })));
+  renderPopup(DEFAULT_POPUP);
+  popupStatus.textContent = '';
+  markDirty();
+  status.textContent = 'Defaults restored in the editor. Save to apply, or discard to undo.';
+});
 function collectOptions() {
   const options = [];
   let firstInvalid;
   for (const row of list.children) {
-    const option = { id: row.dataset.id, name: row.querySelector('.name').value.trim(), url: row.querySelector('.url').value.trim(), enabled: row.querySelector('.enabled').checked, incognito: row.querySelector('.incognito').checked };
+    const option = { id: row.dataset.id, name: row.querySelector('.name').value.trim(), url: row.querySelector('.url').value.trim(), enabled: row.querySelector('.enabled').checked, incognito: row.querySelector('.incognito').checked, quickPopup: row.querySelector('.quick-popup').checked, popupLabel: limitPopupLabel(row.querySelector('.popup-label').value) };
     const nameError = !option.name ? 'Enter a site name.' : option.name.length > 80 ? 'Keep the site name under 81 characters.' : '';
     const linkError = validateOption({ ...option, name: 'Site' });
     for (const [field, error] of [['name', nameError], ['link', linkError]]) {
@@ -117,17 +177,26 @@ function collectOptions() {
 
 document.querySelector('#settings').addEventListener('submit', async event => {
   event.preventDefault();
+  if (!popupColumns.checkValidity() || !Number.isSafeInteger(Number(popupColumns.value))) {
+    status.textContent = 'Icons per row must be a whole number of at least 0.';
+    popupColumns.focus();
+    popupColumns.reportValidity();
+    return;
+  }
   let options;
   try { options = collectOptions(); }
   catch (error) { status.textContent = error.message; return; }
-  const saveButton = document.querySelector('#save');
-  saveButton.disabled = true;
+  disableSave(true);
   try {
-    await chrome.storage.local.set({ searchOptions: options });
+    const quickPopup = collectPopup();
+    if (quickPopup.enabled && !await chrome.permissions.contains({ origins: POPUP_ORIGINS })) throw new Error('Website access is required. Enable the quick popup again.');
+    await chrome.storage.local.set({ searchOptions: options, quickPopup });
+    savedPopup = structuredClone(quickPopup);
     saved = structuredClone(options); dirty = false;
-    status.textContent = 'Saved. Your right-click searches are ready.';
+    popupStatus.textContent = '';
+    status.textContent = 'Saved. Your searches are ready.';
   } catch { status.textContent = 'Could not save. Your changes are still here; try again.'; }
-  finally { saveButton.disabled = false; }
+  finally { disableSave(false); }
 });
 
 const transferText = document.querySelector('#transfer-text');
@@ -148,17 +217,17 @@ document.querySelector('#import').addEventListener('click', async () => {
   try { options = importOptions(transferText.value); }
   catch (error) { transferStatus.textContent = error.message; return; }
   const importButton = document.querySelector('#import');
-  const saveButton = document.querySelector('#save');
   importButton.disabled = true;
-  saveButton.disabled = true;
+  disableSave(true);
   try {
     await chrome.storage.local.set({ searchOptions: options });
-    saved = structuredClone(options); render(saved); dirty = false;
-    status.textContent = 'Imported options saved. Your right-click searches are ready.';
+    saved = structuredClone(options); render(saved);
+    dirty = JSON.stringify(collectPopup()) !== JSON.stringify(savedPopup);
+    status.textContent = dirty ? 'Imported options saved. Popup settings still have unsaved changes.' : 'Imported options saved. Your searches are ready.';
     transferStatus.textContent = `Imported ${options.length} search options.`;
   } catch { transferStatus.textContent = 'Could not save the import. Your existing options are still here; try again.'; }
-  finally { importButton.disabled = false; saveButton.disabled = false; }
+  finally { importButton.disabled = false; disableSave(false); }
 });
 window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
-try { saved = await readOptions(); render(saved); }
-catch { status.textContent = 'Could not load settings. Reload this page to try again.'; document.querySelector('#save').disabled = true; }
+try { [saved, savedPopup] = await Promise.all([readOptions(), readPopup()]); render(saved); renderPopup(savedPopup); }
+catch { status.textContent = 'Could not load settings. Reload this page to try again.'; disableSave(true); }

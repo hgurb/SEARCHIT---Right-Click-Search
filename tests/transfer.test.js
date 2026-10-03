@@ -4,8 +4,8 @@ import { exportOptions, importOptions } from '../transfer.js';
 
 test('exports and imports Unicode names, URLs, order and enabled states with fresh unique IDs', () => {
   const options = [
-    { id: 'original', name: '日本語 🎬', url: 'https://example.com/?q=#searchit#', enabled: false, incognito: true },
-    { id: 'original-2', name: 'Video', url: 'https://example.org/#SearchIt#', enabled: true, incognito: false }
+    { id: 'original', name: '日本語 🎬', url: 'https://example.com/?q=#searchit#', enabled: false, incognito: true, quickPopup: false, popupLabel: 'JP🎬' },
+    { id: 'original-2', name: 'Video', url: 'https://example.org/#SearchIt#', enabled: true, incognito: false, quickPopup: true, popupLabel: '' }
   ];
   const value = exportOptions(options);
   const imported = importOptions(` \n${value}\n `);
@@ -20,6 +20,11 @@ test('empty option lists can be transferred', () => {
 test('older exports import with incognito disabled and invalid incognito values are rejected', () => {
   const value = 'SEARCHIT:v1:{"options":[{"name":"Old","url":"https://example.com/?q=#searchit#","enabled":true}]}';
   assert.equal(importOptions(value)[0].incognito, false);
+  assert.equal(importOptions(value)[0].quickPopup, true);
+  assert.equal(importOptions(value)[0].popupLabel, '');
+  assert.throws(() => importOptions(value.replace('"enabled":true', '"enabled":true,"popupLabel":"abcd"')));
+  assert.throws(() => importOptions(value.replace('"enabled":true', '"enabled":true,"popupLabel":42')));
+  assert.throws(() => importOptions(value.replace('"enabled":true', '"enabled":true,"quickPopup":"false"')));
   assert.throws(() => importOptions(value.replace('"enabled":true', '"enabled":true,"incognito":"false"')));
 });
 test('rejects broken strings, unknown formats and invalid options before import', () => {

@@ -1,4 +1,5 @@
 import { validateOption } from './search.js';
+import { limitPopupLabel } from './popup-label.js';
 
 const PREFIX = 'SEARCHIT:v1:';
 
@@ -9,7 +10,9 @@ function checkOptions(options) {
     if (error) throw new Error(`Search option ${index + 1}: ${error}`);
     if (typeof option.enabled !== 'boolean') throw new Error(`Search option ${index + 1}: Invalid enabled state.`);
     if (option.incognito !== undefined && typeof option.incognito !== 'boolean') throw new Error(`Search option ${index + 1}: Invalid incognito state.`);
-    return { name: option.name.trim(), url: option.url.trim(), enabled: option.enabled, incognito: option.incognito === true };
+    if (option.quickPopup !== undefined && typeof option.quickPopup !== 'boolean') throw new Error(`Search option ${index + 1}: Invalid quick popup state.`);
+    if (option.popupLabel !== undefined && (typeof option.popupLabel !== 'string' || limitPopupLabel(option.popupLabel) !== option.popupLabel)) throw new Error(`Search option ${index + 1}: Popup labels must contain at most 3 characters.`);
+    return { name: option.name.trim(), url: option.url.trim(), enabled: option.enabled, incognito: option.incognito === true, quickPopup: option.quickPopup !== false, popupLabel: option.popupLabel ?? '' };
   });
 }
 

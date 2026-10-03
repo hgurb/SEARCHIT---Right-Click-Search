@@ -8,7 +8,8 @@ test('menu lifecycle applies saved order, disabled entries, empty lists and curr
   let menus = [];
   const tabs = [];
   globalThis.chrome = {
-    runtime: { onInstalled: event('install'), onStartup: event('startup'), openOptionsPage: () => {} },
+    runtime: { onInstalled: event('install'), onStartup: event('startup'), onMessage: event('message'), openOptionsPage: () => {} },
+    permissions: { onRemoved: event('removed'), onAdded: event('added') },
     action: { onClicked: event('action') },
     storage: { local: { get: async () => ({ searchOptions: options }) }, onChanged: event('storage') },
     contextMenus: {
