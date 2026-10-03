@@ -2,7 +2,9 @@
 
 A single Chrome extension for searching selected text on an editable list of websites. Current version: **1.1.0**.
 
-## Install
+[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/searchit-right-click-sear/hdpcbfjagjalpalmfngcganeepfmjajm)
+
+## Install manually
 
 1. Open `chrome://extensions` in Chrome.
 2. Turn on **Developer mode** at the top right.
