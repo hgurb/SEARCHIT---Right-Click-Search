@@ -1,0 +1,8 @@
+/backups/
+*.zip
+/images/
+/scripts/
+/tests/
+/package.json
+/STORE-LISTING.md
+/icons/icon.svg
