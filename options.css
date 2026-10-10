@@ -110,3 +110,5 @@ footer { border-top: 1px solid #e8ecf2; padding-top: 20px; display: flex; align-
 :root:not([data-theme="light"]) .primary:hover { background: #ffb477; }
 @media (max-width: 850px) { .fields { grid-template-columns: 1fr; } }
 @media (max-width: 500px) { main { margin: 24px auto; padding: 0 12px; }form { padding: 16px; }.option { flex-wrap: wrap; padding: 12px; gap: 10px; }.row-actions { width: 100%; justify-content: end; }footer { flex-wrap: wrap; }#status { flex-basis: 100%; } }
+
+.list-actions { display: flex; justify-content: flex-end; margin-top: 16px; }

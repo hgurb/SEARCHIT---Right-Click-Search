@@ -139,10 +139,10 @@ function addRow(option) {
 }
 
 function render(options) { list.replaceChildren(); options.forEach(addRow); updateCount(); }
-document.querySelector('#add').addEventListener('click', () => {
+document.querySelectorAll('#add, #add-bottom').forEach(button => button.addEventListener('click', () => {
   const row = addRow({ id: crypto.randomUUID(), name: '', url: '', enabled: true });
   markDirty(); row.querySelector('.name').focus();
-});
+}));
 document.querySelector('#discard').addEventListener('click', () => { render(saved); renderPopup(savedPopup); popupStatus.textContent = ''; dirty = false; status.textContent = 'Changes discarded'; });
 document.querySelector('#reset').addEventListener('click', () => {
   render(DEFAULT_OPTIONS.map(option => ({ ...option })));

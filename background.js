@@ -61,11 +61,21 @@ function createMenu(properties) {
   });
 }
 
+function removeMenus() {
+  return new Promise((resolve, reject) => {
+    chrome.contextMenus.removeAll(() => {
+      const error = chrome.runtime.lastError;
+      if (error) reject(new Error(error.message));
+      else resolve();
+    });
+  });
+}
+
 let menuQueue = Promise.resolve();
 export function rebuildMenus() {
   menuQueue = menuQueue.catch(() => {}).then(async () => {
     const options = await readOptions();
-    await chrome.contextMenus.removeAll();
+    await removeMenus();
     const enabled = options.filter(option => option.enabled !== false && !validateOption(option));
     if (!enabled.length) return;
     await createMenu({ id: 'search-root', title: 'Search selected text', contexts: ['selection'] });

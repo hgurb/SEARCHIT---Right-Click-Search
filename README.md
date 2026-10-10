@@ -1,4 +1,4 @@
-# SEARCHIT - Right Click Search
+# SEARCHIT Selected Text Search
 
 Search selected text on your favorite websites using the right-click menu or an optional quick popup.
 
